@@ -1,73 +1,30 @@
 import winston from 'winston';
-import 'winston-daily-rotate-file';
-import fs from 'fs';
-import path from 'path';
-
-// Ensure the logs directory exists
-const logDirectory = path.join(process.cwd(), 'logs');
-if (!fs.existsSync(logDirectory)) {
-  fs.mkdirSync(logDirectory);
-}
 
 const { combine, timestamp, printf, colorize, errors, json } = winston.format;
 
-// Custom format for console logging in development
-const consoleFormat = printf(({ level, message, timestamp, stack }) => {
-  return `${timestamp} [${level}]: ${stack || message}`;
+const logFormat = printf(({ level, message, timestamp, stack }) => {
+  return `${timestamp} ${level}: ${stack || message}`;
 });
 
-// Configure daily log rotation transports
-const dailyRotateErrorTransport = new winston.transports.DailyRotateFile({
-  filename: path.join(logDirectory, 'error-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  zippedArchive: true,
-  maxSize: '20m',
-  maxFiles: '14d',
-  level: 'error',
-});
-
-const dailyRotateCombinedTransport = new winston.transports.DailyRotateFile({
-  filename: path.join(logDirectory, 'combined-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  zippedArchive: true,
-  maxSize: '20m',
-  maxFiles: '14d',
-});
-
-// Create the Winston logger instance
 const logger = winston.createLogger({
-  // Default level based on environment
-  level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
-  
-  // Format for file logs (JSON, complete with timestamps and stack traces)
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   format: combine(
+    errors({ stack: true }), // Automatically log error stacks
     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    errors({ stack: true }), // Captures stack traces automatically if an Error is passed
-    json()
+    process.env.NODE_ENV === 'production' ? json() : combine(colorize(), logFormat)
   ),
-  
-  // Define where the logs should go
   transports: [
-    dailyRotateErrorTransport,
-    dailyRotateCombinedTransport
-  ],
-  
-  // Do not exit the process if a handled exception gets logged
-  exitOnError: false, 
+    new winston.transports.Console(),
+    // Log errors to a dedicated file
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    // Log everything else to a combined file
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  ]
 });
 
-// If we are not in production, also log to the Console with colorized output
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(
-    new winston.transports.Console({
-      format: combine(
-        colorize({ all: true }),
-        timestamp({ format: 'HH:mm:ss' }),
-        errors({ stack: true }),
-        consoleFormat
-      ),
-    })
-  );
+// Avoid writing to files in test mode to prevent clutter
+if (process.env.NODE_ENV === 'test') {
+  logger.transports.forEach(t => (t.silent = true));
 }
 
 export default logger;

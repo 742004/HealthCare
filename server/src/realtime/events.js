@@ -1,0 +1,44 @@
+/**
+ * ============================================================================
+ * REALTIME EVENTS REGISTRY
+ * A centralized, immutable dictionary of every WebSocket event emitted or 
+ * received by the application.
+ * ============================================================================
+ */
+
+export const REALTIME_EVENTS = Object.freeze({
+  // Connection Lifecycle
+  CONNECTED: 'CONNECTED',
+  DISCONNECTED: 'DISCONNECTED',
+  RECONNECTED: 'RECONNECTED',
+
+  // Authentication
+  AUTHENTICATED: 'AUTHENTICATED',
+  AUTH_FAILED: 'AUTH_FAILED',
+
+  // Presence & Tracking
+  USER_ONLINE: 'USER_ONLINE',
+  USER_OFFLINE: 'USER_OFFLINE',
+  LOCATION_UPDATED: 'LOCATION_UPDATED',
+
+  // Emergency Lifecycle
+  EMERGENCY_CREATED: 'EMERGENCY_CREATED',
+  EMERGENCY_UPDATED: 'EMERGENCY_UPDATED',
+  EMERGENCY_CANCELLED: 'EMERGENCY_CANCELLED',
+  HOSPITAL_ASSIGNED: 'HOSPITAL_ASSIGNED',
+  AMBULANCE_ASSIGNED: 'AMBULANCE_ASSIGNED',
+  PATIENT_PICKED: 'PATIENT_PICKED',
+  PATIENT_DROPPED: 'PATIENT_DROPPED',
+  EMERGENCY_COMPLETED: 'EMERGENCY_COMPLETED',
+
+  // Chat & Messaging
+  MESSAGE_SENT: 'MESSAGE_SENT',
+  MESSAGE_EDITED: 'MESSAGE_EDITED',
+  MESSAGE_DELETED: 'MESSAGE_DELETED',
+  TYPING_STARTED: 'TYPING_STARTED',
+  TYPING_STOPPED: 'TYPING_STOPPED',
+
+  // Notifications
+  NOTIFICATION_CREATED: 'NOTIFICATION_CREATED',
+  NOTIFICATION_READ: 'NOTIFICATION_READ'
+});
