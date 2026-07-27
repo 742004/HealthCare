@@ -2,9 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import mongoSanitize from 'express-mongo-sanitize';
-import xss from 'xss-clean';
-import compression from 'compression';
 
 import routes from './routes/index.js';
 import logger from './utils/logger.js';
@@ -13,10 +10,10 @@ import ApiError from './utils/ApiError.js';
 const app = express();
 
 // ==========================================
-// 1. GLOBAL MIDDLEWARES (Security & Perf)
+// 1. GLOBAL MIDDLEWARES
 // ==========================================
 
-// Set Security HTTP Headers (Module 21)
+// Set Security HTTP Headers
 app.use(helmet());
 
 // Enable CORS
@@ -26,30 +23,14 @@ app.use(cors({
 }));
 
 // Request parsing
-app.use(express.json({ limit: '10kb' })); // Body limit is 10kb
+app.use(express.json({ limit: '10kb' })); 
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// Data Sanitization against NoSQL query injection (Module 21)
-app.use(mongoSanitize());
-
-// Data Sanitization against XSS (Module 21)
-app.use(xss());
-
-// Compress all responses (Module 20)
-app.use(compression());
-
-// Logging (Module 22)
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  // Production logging
-  app.use(morgan('combined', {
-    stream: { write: (message) => logger.info(message.trim()) }
-  }));
-}
+// Logging
+app.use(morgan('dev'));
 
 // ==========================================
-// 2. MONITORING ENDPOINTS (Module 22)
+// 2. MONITORING ENDPOINTS
 // ==========================================
 
 // Liveness Probe
