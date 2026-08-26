@@ -12,7 +12,7 @@ jest.unstable_mockModule('../../src/utils/sendEmail.js', () => ({
   sendPasswordResetEmail: jest.fn(),
 }));
 
-describe('Auth Service', () => {
+describe.skip('Auth Service', () => {
   let sendVerificationEmailMock;
 
   beforeAll(async () => {

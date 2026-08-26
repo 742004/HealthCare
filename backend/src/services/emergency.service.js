@@ -7,21 +7,8 @@ import { generateUniqueReference } from '../utils/helpers.js';
 import { hospitalService } from './hospital.service.js';
 import { ambulanceService } from './ambulance.service.js';
 
-/**
- * ============================================================================
- * REPOSITORY PLACEHOLDERS
- * ============================================================================
- */
-const EmergencyRepository = {
-  findEmergencyById: async (id, session = null) => null,
-  findByIdempotencyKey: async (key, session = null) => null,
-  createEmergency: async (data, session = null) => null,
-  updateEmergency: async (id, data, session = null) => null,
-};
-
-const PatientRepository = {
-  findProfileByUser: async (userId, session = null) => null,
-};
+import { emergencyRepository } from '../repositories/emergency.repository.js';
+import { patientRepository } from '../repositories/patient.repository.js';
 
 /**
  * ============================================================================
@@ -56,7 +43,7 @@ class EmergencyService {
    * @private
    */
   async _verifyEmergencyExists(emergencyId, session = null) {
-    const emergency = await EmergencyRepository.findEmergencyById(emergencyId, session);
+    const emergency = await emergencyRepository.findById(emergencyId, session);
     if (!emergency) throw new ApiError(404, 'Emergency request not found', 'EMERGENCY_NOT_FOUND');
     return emergency;
   }
@@ -102,7 +89,7 @@ class EmergencyService {
    */
   async createEmergency(patientUserId, emergencyData, idempotencyKey = null) {
     if (idempotencyKey) {
-      const existingReq = await EmergencyRepository.findByIdempotencyKey(idempotencyKey);
+      const existingReq = await emergencyRepository.findByIdempotencyKey(idempotencyKey);
       if (existingReq) return existingReq; // Return cached response to prevent duplicates
     }
 
@@ -114,7 +101,7 @@ class EmergencyService {
     session.startTransaction();
 
     try {
-      const patient = await PatientRepository.findProfileByUser(patientUserId, session);
+      const patient = await patientRepository.findProfileByUser(patientUserId, session);
       if (!patient) throw new ApiError(404, 'Patient profile required');
 
       const payload = {
@@ -125,7 +112,7 @@ class EmergencyService {
         idempotencyKey
       };
 
-      const emergency = await EmergencyRepository.createEmergency(payload, session);
+      const emergency = await emergencyRepository.create(payload, session);
       logger.info(`[AUDIT] Emergency Created: ${emergency._id}`);
 
       await session.commitTransaction();
@@ -149,7 +136,7 @@ class EmergencyService {
     await this._verifyEmergencyExists(emergencyId);
     const triageResult = await aiService.analyzeTriage(symptoms, vitalSigns);
     
-    const updated = await EmergencyRepository.updateEmergency(emergencyId, {
+    const updated = await emergencyRepository.updateById(emergencyId, {
       aiAnalysis: triageResult,
       severity: triageResult.severity
     });
@@ -206,7 +193,7 @@ class EmergencyService {
     
     this._enforceStateTransition(emergency.status, newStatus);
     
-    const updated = await EmergencyRepository.updateEmergency(emergencyId, { status: newStatus });
+    const updated = await emergencyRepository.updateById(emergencyId, { status: newStatus });
     firebaseService.publishRealtimeUpdate(`emergencies/${emergencyId}`, { status: newStatus });
     
     if (newStatus === EMERGENCY_STATUS.PATIENT_PICKED) {
@@ -231,7 +218,7 @@ class EmergencyService {
       const emergency = await this._verifyEmergencyExists(emergencyId, session);
       this._enforceStateTransition(emergency.status, EMERGENCY_STATUS.CANCELLED);
 
-      await EmergencyRepository.updateEmergency(emergencyId, { status: EMERGENCY_STATUS.CANCELLED }, session);
+      await emergencyRepository.updateById(emergencyId, { status: EMERGENCY_STATUS.CANCELLED }, session);
 
       notificationService.sendPushNotification(emergency.patient, 'Cancelled', 'SOS cancelled.');
       logger.warn(`[AUDIT] Emergency Cancelled: ${emergencyId}`);
@@ -257,7 +244,7 @@ class EmergencyService {
       const emergency = await this._verifyEmergencyExists(emergencyId, session);
       this._enforceStateTransition(emergency.status, EMERGENCY_STATUS.COMPLETED);
       
-      await EmergencyRepository.updateEmergency(emergencyId, { status: EMERGENCY_STATUS.COMPLETED }, session);
+      await emergencyRepository.updateById(emergencyId, { status: EMERGENCY_STATUS.COMPLETED }, session);
       
       if (emergency.assignedAmbulance) {
         await ambulanceService.completeTrip(emergency.assignedAmbulance, emergencyId);
