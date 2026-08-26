@@ -8,6 +8,8 @@ import Hospital from '../../src/models/Hospital.js';
 import Ambulance from '../../src/models/Ambulance.js';
 import { auditService } from '../../src/services/audit.service.js';
 import { ApiError } from '../../src/utils/ApiError.js';
+import { userRepository } from '../../src/repositories/user.repository.js';
+import { sessionRepository } from '../../src/repositories/session.repository.js';
 describe('PatientService', () => {
   const mockUserId = new mongoose.Types.ObjectId();
   const mockPatientId = new mongoose.Types.ObjectId();
@@ -27,6 +29,8 @@ describe('PatientService', () => {
     jest.spyOn(Hospital, 'findOne').mockImplementation(() => {});
     jest.spyOn(Ambulance, 'findOne').mockImplementation(() => {});
     jest.spyOn(auditService, 'logEvent').mockImplementation(() => {});
+    jest.spyOn(userRepository, 'updateById').mockImplementation(() => {});
+    jest.spyOn(sessionRepository, 'revokeAllUserSessions').mockImplementation(() => {});
   });
 
   describe('createProfile', () => {
@@ -208,7 +212,11 @@ describe('PatientService', () => {
   describe('softDeleteProfile', () => {
     it('PATIENT-024: Soft-delete lifecycle', async () => {
       patientRepository.softDeleteByUserId.mockResolvedValue({ _id: mockPatientId });
+      userRepository.updateById.mockResolvedValue({ _id: mockUserId, isActive: false });
+      sessionRepository.revokeAllUserSessions.mockResolvedValue(true);
       await patientService.softDeleteProfile(mockUserId);
+      expect(userRepository.updateById).toHaveBeenCalledWith(mockUserId, { isActive: false });
+      expect(sessionRepository.revokeAllUserSessions).toHaveBeenCalledWith(mockUserId);
       expect(auditService.logEvent).toHaveBeenCalledWith('PATIENT_PROFILE_DEACTIVATED', mockUserId, expect.any(Object));
     });
   });
