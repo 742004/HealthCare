@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { hospitalController } from '../controllers/hospital.controller.js';
-import { authenticate, authorize } from '../middlewares/auth.middleware.js';
-import { validate } from '../middlewares/validate.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import * as hospitalValidation from '../validations/hospital.validation.js';
 
 const router = Router();
@@ -19,6 +19,12 @@ router.post(
   authorize('ADMIN'),
   validate(hospitalValidation.registerHospitalSchema),
   hospitalController.registerHospital
+);
+
+// Get nearby hospitals (using Google Places API)
+router.get(
+  '/nearby',
+  hospitalController.getNearbyHospitals
 );
 
 // Get specific hospital (Publicly visible to any authenticated user)

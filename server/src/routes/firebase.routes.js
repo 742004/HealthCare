@@ -1,9 +1,9 @@
 import express from 'express';
 import firebaseController from '../controllers/firebase.controller.js';
-import { validateRequest } from '../middlewares/validateRequest.js';
+import { validateRequest } from '../middleware/validate.middleware.js';
 import { firebaseValidation } from '../validations/firebase.validation.js';
-import { protect, authorize } from '../middlewares/auth.js';
-import firebaseRateLimit from '../middlewares/firebaseRateLimit.js';
+import { protect, authorize } from '../middleware/auth.middleware.js';
+import firebaseRateLimit from '../middleware/firebaseRateLimit.js';
 
 const router = express.Router();
 

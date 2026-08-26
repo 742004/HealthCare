@@ -1,9 +1,9 @@
 import express from 'express';
 import mapsController from '../controllers/maps.controller.js';
-import { validateRequest } from '../middlewares/validateRequest.js';
+import { validateRequest } from '../middleware/validate.middleware.js';
 import { mapsValidation } from '../validations/maps.validation.js';
-import { protect, authorize } from '../middlewares/auth.js';
-import mapsRateLimit from '../middlewares/mapsRateLimit.js';
+import { protect, authorize } from '../middleware/auth.middleware.js';
+import mapsRateLimit from '../middleware/mapsRateLimit.js';
 
 /**
  * Maps Routes

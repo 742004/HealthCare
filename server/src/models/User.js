@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const userSchema = new mongoose.Schema(
   {
@@ -19,13 +20,13 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
+      minlength: [12, 'Password must be at least 12 characters'],
       select: false // Do not return password by default
     },
     role: {
       type: String,
-      enum: ['Patient', 'Doctor', 'Driver', 'HospitalAdmin', 'SuperAdmin'],
-      default: 'Patient',
+      enum: ['patient', 'doctor', 'driver', 'hospital', 'admin'],
+      default: 'patient',
       required: true
     },
     phone: {
@@ -45,7 +46,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
       select: false // Soft delete support
-    }
+    },
+    isLocked: {
+      type: Boolean,
+      default: false
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0
+    },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
+    firebaseUid: String
   },
   {
     timestamps: true,
@@ -68,8 +80,22 @@ userSchema.pre('save', async function (next) {
 });
 
 // Instance method to check password
-userSchema.methods.matchPassword = async function (enteredPassword) {
+userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Generate email verification token
+userSchema.methods.generateEmailVerificationToken = function () {
+  const verificationToken = crypto.randomBytes(20).toString('hex');
+  return verificationToken; // Real implementation might store hashed version if needed
+};
+
+// Generate password reset token
+userSchema.methods.generatePasswordResetToken = function () {
+  const resetToken = crypto.randomBytes(20).toString('hex');
+  this.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+  return resetToken;
 };
 
 // JSON transformation to hide sensitive data
@@ -77,6 +103,9 @@ userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
   delete obj.__v;
+  delete obj.resetPasswordToken;
+  delete obj.resetPasswordExpire;
+  delete obj.tokenVersion;
   return obj;
 };
 

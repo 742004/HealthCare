@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { emergencyController } from '../controllers/emergency.controller.js';
-import { authenticate, authorize } from '../middlewares/auth.middleware.js';
-import { validate } from '../middlewares/validate.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import * as emergencyValidation from '../validations/emergency.validation.js';
 
 const router = Router();

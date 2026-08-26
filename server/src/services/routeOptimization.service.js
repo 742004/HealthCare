@@ -1,6 +1,6 @@
 import mapsService from './maps.service.js';
 import { etaUtils } from '../utils/eta.util.js';
-import ApiError from '../utils/ApiError.js';
+import { ApiError } from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 
 /**

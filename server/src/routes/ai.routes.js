@@ -1,9 +1,9 @@
 import express from 'express';
 import aiController from '../controllers/ai.controller.js';
-import { validateRequest } from '../middlewares/validateRequest.js';
+import { validateRequest } from '../middleware/validate.middleware.js';
 import { aiValidation } from '../validations/ai.validation.js';
-import { protect, authorize } from '../middlewares/auth.js';
-import aiRateLimit from '../middlewares/aiRateLimit.js';
+import { protect, authorize } from '../middleware/auth.middleware.js';
+import aiRateLimit from '../middleware/aiRateLimit.js';
 
 /**
  * AI Routes
@@ -17,6 +17,13 @@ const router = express.Router();
 router.use(aiRateLimit);
 // Require authentication for all AI routes
 router.use(protect);
+
+router.post(
+  '/chat',
+  authorize('PATIENT', 'ADMIN', 'DOCTOR', 'HOSPITAL', 'AMBULANCE'),
+  validateRequest(aiValidation.chatSchema),
+  aiController.chat
+);
 
 router.post(
   '/triage',

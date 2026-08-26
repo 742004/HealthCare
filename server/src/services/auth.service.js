@@ -9,21 +9,66 @@ import logger from '../utils/logger.js';
 import { VALIDATION_CONSTANTS } from '../utils/constants.js';
 import { generateOTP } from '../utils/helpers.js';
 
+import User from '../models/User.js';
+import Patient from '../models/Patient.js';
+
 /**
  * ============================================================================
- * REPOSITORY PLACEHOLDER
- * Abstracts direct Mongoose model access. To be replaced by auth.repository.js
+ * REPOSITORY PLACEHOLDER REPLACED WITH REAL MONGOOSE CALLS
  * ============================================================================
  */
 const AuthRepository = {
-  findUserByEmailOrPhone: async (email, phone, session = null) => null, // Placeholder
-  findUserByEmailWithPassword: async (email, session = null) => null, // Placeholder
-  findUserById: async (id, session = null) => null, // Placeholder
-  findUserByPhone: async (phone, session = null) => null, // Placeholder
-  findUserByResetToken: async (token, session = null) => null, // Placeholder
-  findUserByFirebaseOrEmail: async (uid, email, session = null) => null, // Placeholder
-  createUser: async (userData, session = null) => null, // Placeholder
-  saveUser: async (userDoc, session = null) => null, // Placeholder
+  findUserByEmailOrPhone: async (email, phone, session = null) => {
+    return await User.findOne({ $or: [{ email }, { phone }] }).session(session);
+  },
+  findUserByEmailWithPassword: async (email, session = null) => {
+    return await User.findOne({ email }).select('+password').session(session);
+  },
+  findUserById: async (id, session = null) => {
+    return await User.findById(id).session(session);
+  },
+  findUserByPhone: async (phone, session = null) => {
+    return await User.findOne({ phone }).session(session);
+  },
+  findUserByResetToken: async (token, session = null) => {
+    return await User.findOne({ resetPasswordToken: token, resetPasswordExpire: { $gt: Date.now() } }).session(session);
+  },
+  findUserByFirebaseOrEmail: async (uid, email, session = null) => {
+    return await User.findOne({ $or: [{ firebaseUid: uid }, { email }] }).session(session);
+  },
+  createUser: async (userData, session = null) => {
+    // Create the User document
+    const users = await User.create([userData], { session });
+    const user = users[0];
+
+    // If role is patient, also create Patient document
+    if (user.role === 'patient') {
+      const dob = new Date();
+      dob.setFullYear(dob.getFullYear() - (userData.age || 0));
+      
+      const emergencyContacts = [];
+      if (userData.contact) {
+        emergencyContacts.push({
+          name: 'Emergency Contact',
+          phone: userData.contact,
+          relation: 'Unknown'
+        });
+      }
+
+      await Patient.create([{
+        user: user._id,
+        dateOfBirth: dob,
+        bloodGroup: userData.blood || 'O+',
+        gender: 'Other', // default as it's not in the reg form
+        emergencyContacts: emergencyContacts
+      }], { session });
+    }
+    
+    return user;
+  },
+  saveUser: async (userDoc, session = null) => {
+    return await userDoc.save({ session });
+  },
 };
 
 /**

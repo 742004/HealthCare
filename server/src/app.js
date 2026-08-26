@@ -5,7 +5,7 @@ import morgan from 'morgan';
 
 import routes from './routes/index.js';
 import logger from './utils/logger.js';
-import ApiError from './utils/ApiError.js';
+import { ApiError } from './utils/ApiError.js';
 
 const app = express();
 

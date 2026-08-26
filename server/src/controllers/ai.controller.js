@@ -1,5 +1,5 @@
 import aiService from '../services/ai.service.js';
-import { catchAsync } from '../utils/helpers.js';
+import { asyncHandler as catchAsync } from '../utils/asyncHandler.js';
 
 /**
  * AI Controller
@@ -9,6 +9,15 @@ import { catchAsync } from '../utils/helpers.js';
  */
 class AIController {
   
+  chat = catchAsync(async (req, res) => {
+    const result = await aiService.chat(req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Chat response generated successfully',
+      data: result,
+    });
+  });
+
   triageEmergency = catchAsync(async (req, res) => {
     const result = await aiService.triageEmergency(req.body);
     res.status(200).json({

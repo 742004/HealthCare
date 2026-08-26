@@ -1,7 +1,7 @@
 import mapsService from '../services/maps.service.js';
 import routeOptimizationService from '../services/routeOptimization.service.js';
 import trackingService from '../services/tracking.service.js';
-import { catchAsync } from '../utils/helpers.js';
+import { asyncHandler as catchAsync } from '../utils/asyncHandler.js';
 
 /**
  * Maps Controller

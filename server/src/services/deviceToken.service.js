@@ -1,5 +1,5 @@
 import DeviceToken from '../models/DeviceToken.js';
-import ApiError from '../utils/ApiError.js';
+import { ApiError } from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 import { FirebaseProvider } from '../providers/firebase.provider.js';
 

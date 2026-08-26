@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { patientController } from '../controllers/patient.controller.js';
-import { authenticate, authorize } from '../middlewares/auth.middleware.js';
-import { validate } from '../middlewares/validate.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import * as patientValidation from '../validations/patient.validation.js';
 
 const router = Router();

@@ -1,5 +1,5 @@
 import NotificationPreference from '../models/NotificationPreference.js';
-import ApiError from '../utils/ApiError.js';
+import { ApiError } from '../utils/ApiError.js';
 
 class NotificationPreferenceService {
   async getPreferences(userId) {

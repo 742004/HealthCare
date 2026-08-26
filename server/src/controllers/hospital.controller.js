@@ -1,5 +1,7 @@
 import { BaseController } from '../core/BaseController.js';
 import { hospitalService } from '../services/hospital.service.js';
+import { searchNearbyHospitals } from '../utils/geo.utils.js';
+import { ApiError } from '../utils/ApiError.js';
 
 /**
  * Hospital Controller
@@ -18,6 +20,19 @@ class HospitalController extends BaseController {
     const payload = { ...req.body, adminUser: req.user._id };
     const hospital = await this.service.registerHospital(payload);
     return this.sendCreated(res, hospital, 'Hospital registered successfully');
+  });
+
+  /**
+   * Get nearby hospitals using Google Places API
+   * Route: GET /api/v1/hospitals/nearby?lat=...&lng=...
+   */
+  getNearbyHospitals = this.execute(async (req, res) => {
+    const { lat, lng } = req.query;
+    if (!lat || !lng) {
+      throw new ApiError(400, 'Latitude and longitude are required');
+    }
+    const hospitals = await searchNearbyHospitals(lat, lng);
+    return this.sendSuccess(res, hospitals, 'Nearby hospitals retrieved successfully');
   });
 
   /**

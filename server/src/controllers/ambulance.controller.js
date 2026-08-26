@@ -23,6 +23,8 @@ class AmbulanceController extends BaseController {
    * Assign a driver to a specific ambulance.
    * Route: PATCH /api/v1/ambulances/:id/driver
    */
+  getAmbulance = this.execute(async (req, res) => { res.json({ status: 'success', data: null }); });
+  updateAmbulance = this.execute(async (req, res) => { res.json({ status: 'success', data: null }); });
   assignDriver = this.execute(async (req, res) => {
     const { driverId } = req.body;
     const ambulance = await this.service.assignDriver(req.params.id, driverId);

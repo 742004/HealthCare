@@ -21,6 +21,13 @@ export const aiValidation = {
     }),
   }),
 
+  chatSchema: z.object({
+    body: z.object({
+      message: z.string().min(1, "Message is required"),
+      context: z.record(z.any()).optional(),
+    }),
+  }),
+
   hospitalSchema: z.object({
     body: z.object({
       emergencyType: z.string().min(2, "Emergency type is required"),

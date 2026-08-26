@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { doctorController } from '../controllers/doctor.controller.js';
-import { authenticate, authorize } from '../middlewares/auth.middleware.js';
-import { validate } from '../middlewares/validate.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import * as doctorValidation from '../validations/doctor.validation.js';
 
 const router = Router();

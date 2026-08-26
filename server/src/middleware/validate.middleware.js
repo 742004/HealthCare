@@ -27,3 +27,5 @@ export const validateRequest = (schema) => async (req, res, next) => {
     return next(new ApiError(400, errorMessage));
   }
 };
+
+export const validate = validateRequest;

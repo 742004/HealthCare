@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { chatController } from '../controllers/chat.controller.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
-import { validate } from '../middlewares/validate.middleware.js';
+import { authenticate } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import * as chatValidation from '../validations/chat.validation.js';
 
 const router = Router();

@@ -1,5 +1,5 @@
 import { GoogleMapsProvider } from '../providers/googleMaps.provider.js';
-import ApiError from '../utils/ApiError.js';
+import { ApiError } from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 
 /**

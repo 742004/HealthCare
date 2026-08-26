@@ -1,5 +1,5 @@
 import NotificationHistory from '../models/NotificationHistory.js';
-import ApiError from '../utils/ApiError.js';
+import { ApiError } from '../utils/ApiError.js';
 
 class NotificationHistoryService {
   async logNotification(recipientId, type, title, body, dataPayload) {

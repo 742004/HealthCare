@@ -2,7 +2,7 @@ import deviceTokenService from '../services/deviceToken.service.js';
 import notificationPreferenceService from '../services/notificationPreference.service.js';
 import notificationHistoryService from '../services/notificationHistory.service.js';
 import firebaseNotificationService from '../services/firebaseNotification.service.js';
-import { catchAsync } from '../utils/helpers.js';
+import { asyncHandler as catchAsync } from '../utils/asyncHandler.js';
 
 class FirebaseController {
   

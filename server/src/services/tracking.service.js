@@ -1,7 +1,7 @@
-import { io } from '../realtime/gateway.js'; // Assuming realtime is set up and accessible
+import { realtimeGateway as io } from '../realtime/gateway.js'; // Assuming realtime is set up and accessible
 import { REALTIME_EVENTS } from '../realtime/events.js'; // Assuming standard events are defined
 import logger from '../utils/logger.js';
-import ApiError from '../utils/ApiError.js';
+import { ApiError } from '../utils/ApiError.js';
 
 /**
  * Tracking Service

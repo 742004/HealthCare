@@ -63,3 +63,6 @@ export const authenticate = async (req, res, next) => {
     next(new ApiError(500, 'Internal Server Error during authentication.'));
   }
 };
+
+export const protect = authenticate;
+export { restrictTo as authorize } from './role.middleware.js';

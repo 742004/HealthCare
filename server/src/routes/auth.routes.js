@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { authController } from '../controllers/auth.controller.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
-import { validate } from '../middlewares/validate.middleware.js';
+import { authenticate } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import * as authValidation from '../validations/auth.validation.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -14,12 +15,14 @@ const router = Router();
 
 router.post(
   '/register',
+  authLimiter,
   validate(authValidation.registerSchema),
   authController.register
 );
 
 router.post(
   '/login',
+  authLimiter,
   validate(authValidation.loginSchema),
   authController.login
 );
@@ -32,18 +35,21 @@ router.post(
 
 router.post(
   '/verify-email',
+  authLimiter,
   validate(authValidation.verifyEmailSchema),
   authController.verifyEmail
 );
 
 router.post(
   '/forgot-password',
+  authLimiter,
   validate(authValidation.forgotPasswordSchema),
   authController.forgotPassword
 );
 
 router.post(
   '/reset-password',
+  authLimiter,
   validate(authValidation.resetPasswordSchema),
   authController.resetPassword
 );

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ambulanceController } from '../controllers/ambulance.controller.js';
-import { authenticate, authorize } from '../middlewares/auth.middleware.js';
-import { validate } from '../middlewares/validate.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import * as ambulanceValidation from '../validations/ambulance.validation.js';
 
 const router = Router();
