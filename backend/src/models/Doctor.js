@@ -10,8 +10,7 @@ const doctorSchema = new mongoose.Schema(
     },
     hospital: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Hospital',
-      required: true
+      ref: 'Hospital'
     },
     specialization: {
       type: String,

@@ -6,72 +6,48 @@ import * as doctorValidation from '../validations/doctor.validation.js';
 
 const router = Router();
 
-/**
- * ============================================================================
- * PROTECTED ROUTES (Requires valid Access Token)
- * ============================================================================
- */
 router.use(authenticate);
 
-// Create doctor profile
 router.post(
   '/',
-  validate(doctorValidation.createProfileSchema),
+  authorize('doctor'),
+  validate(doctorValidation.createDoctorSchema),
   doctorController.createProfile
 );
 
-// Get current doctor profile
 router.get(
   '/me',
-  authorize('DOCTOR'),
+  authorize('doctor'),
   doctorController.getCurrentDoctor
 );
 
-// Update doctor profile
 router.patch(
   '/me',
-  authorize('DOCTOR'),
-  validate(doctorValidation.updateProfileSchema),
+  authorize('doctor'),
+  validate(doctorValidation.updateDoctorSchema),
   doctorController.updateProfile
 );
 
-// Update availability status
 router.patch(
   '/me/availability',
-  authorize('DOCTOR'),
+  authorize('doctor'),
   validate(doctorValidation.updateAvailabilitySchema),
   doctorController.updateAvailability
 );
 
-// View assigned emergencies
 router.get(
   '/me/emergencies',
-  authorize('DOCTOR'),
+  authorize('doctor'),
   doctorController.viewAssignedEmergencies
 );
 
-// Add consultation notes to an emergency/patient case
-router.post(
-  '/consultations',
-  authorize('DOCTOR'),
-  validate(doctorValidation.addConsultationSchema),
-  doctorController.addConsultationNotes
-);
-
-// Soft delete doctor profile
 router.delete(
   '/me',
-  authorize('DOCTOR'),
+  authorize('doctor'),
   doctorController.softDeleteProfile
 );
 
-/**
- * ============================================================================
- * PUBLIC / SYSTEM ROUTES
- * ============================================================================
- */
-
-// Get specific doctor by ID (Visible to patients, hospitals, admins)
+// Public projection, accessible by any authenticated user
 router.get(
   '/:id',
   validate(doctorValidation.getDoctorByIdSchema),
