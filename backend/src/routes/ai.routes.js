@@ -2,7 +2,7 @@ import express from 'express';
 import aiController from '../controllers/ai.controller.js';
 import { validateRequest } from '../middleware/validate.middleware.js';
 import { aiValidation } from '../validations/ai.validation.js';
-import { protect, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import aiRateLimit from '../middleware/aiRateLimit.js';
 
 /**
@@ -16,7 +16,7 @@ const router = express.Router();
 // Apply global rate limiting for AI routes to prevent API abuse
 router.use(aiRateLimit);
 // Require authentication for all AI routes
-router.use(protect);
+router.use(authenticate);
 
 router.post(
   '/chat',

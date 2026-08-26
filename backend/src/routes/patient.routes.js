@@ -13,9 +13,10 @@ const router = Router();
  */
 router.use(authenticate);
 
-// Create profile (Any authenticated user can create a patient profile)
+// Create profile (Only PATIENT and ADMIN can create profiles)
 router.post(
   '/',
+  authorize('patient', 'admin'),
   validate(patientValidation.createProfileSchema),
   patientController.createProfile
 );
@@ -23,14 +24,14 @@ router.post(
 // Get current patient profile
 router.get(
   '/me',
-  authorize('PATIENT'),
+  authorize('patient'),
   patientController.getCurrentPatient
 );
 
-// Update patient profile
+// Update patient profile (demographics)
 router.patch(
   '/me',
-  authorize('PATIENT'),
+  authorize('patient'),
   validate(patientValidation.updateProfileSchema),
   patientController.updateProfile
 );
@@ -38,7 +39,7 @@ router.patch(
 // Update live GPS location
 router.patch(
   '/me/location',
-  authorize('PATIENT'),
+  authorize('patient'),
   validate(patientValidation.updateLocationSchema),
   patientController.updateLiveLocation
 );
@@ -46,43 +47,29 @@ router.patch(
 // Update emergency contacts
 router.patch(
   '/me/emergency-contacts',
-  authorize('PATIENT'),
+  authorize('patient'),
   validate(patientValidation.updateEmergencyContactsSchema),
   patientController.updateEmergencyContacts
-);
-
-// Upload medical documents
-router.post(
-  '/me/documents',
-  authorize('PATIENT'),
-  validate(patientValidation.uploadDocumentsSchema),
-  patientController.uploadDocuments
-);
-
-// View personal emergency history
-router.get(
-  '/me/emergencies',
-  authorize('PATIENT'),
-  patientController.viewEmergencyHistory
 );
 
 // Soft delete patient profile
 router.delete(
   '/me',
-  authorize('PATIENT'),
+  authorize('patient', 'admin'),
   patientController.softDeleteProfile
 );
 
 /**
  * ============================================================================
- * ADMIN / DOCTOR ROUTES
+ * ADMIN / DOCTOR / HOSPITAL / AMBULANCE ROUTES
  * ============================================================================
  */
 
-// Get specific patient by ID (Doctors and Admins only)
+// Get specific patient by ID
+// Authorization logic is handled strictly inside the service via Server-Side Relationship lookups.
 router.get(
   '/:id',
-  authorize('DOCTOR', 'ADMIN', 'HOSPITAL'),
+  authorize('doctor', 'admin', 'hospital', 'driver'),
   validate(patientValidation.getPatientByIdSchema),
   patientController.getPatientById
 );

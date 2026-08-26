@@ -2,7 +2,7 @@ import express from 'express';
 import mapsController from '../controllers/maps.controller.js';
 import { validateRequest } from '../middleware/validate.middleware.js';
 import { mapsValidation } from '../validations/maps.validation.js';
-import { protect, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import mapsRateLimit from '../middleware/mapsRateLimit.js';
 
 /**
@@ -13,7 +13,7 @@ import mapsRateLimit from '../middleware/mapsRateLimit.js';
 const router = express.Router();
 
 router.use(mapsRateLimit);
-router.use(protect);
+router.use(authenticate);
 
 router.post('/geocode', validateRequest(mapsValidation.geocodeSchema), mapsController.geocode);
 router.post('/reverse-geocode', validateRequest(mapsValidation.coordinateSchema), mapsController.reverseGeocode);

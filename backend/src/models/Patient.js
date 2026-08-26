@@ -47,6 +47,9 @@ const patientSchema = new mongoose.Schema(
         default: [0, 0]
       }
     },
+    locationUpdatedAt: {
+      type: Date
+    },
     isActive: {
       type: Boolean,
       default: true
