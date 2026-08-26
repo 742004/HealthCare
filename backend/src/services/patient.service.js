@@ -1,65 +1,48 @@
 import mongoose from 'mongoose';
 import { ApiError } from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
+import { patientRepository } from '../repositories/patient.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
+import { sessionRepository } from '../repositories/session.repository.js';
+import EmergencyRequest from '../models/EmergencyRequest.js';
+import Doctor from '../models/Doctor.js';
+import Ambulance from '../models/Ambulance.js';
+import Hospital from '../models/Hospital.js';
+import { auditService } from './audit.service.js';
 
-/**
- * ============================================================================
- * REPOSITORY PLACEHOLDER
- * Abstracts direct Mongoose model access. To be replaced by patient.repository.js
- * ============================================================================
- */
-const PatientRepository = {
-  findProfileByUser: async (userId, session = null) => null,
-  findProfileById: async (id, session = null) => null,
-  createProfile: async (patientData, session = null) => null,
-  updateProfile: async (id, updateData, session = null) => null,
-  softDeleteProfile: async (id, session = null) => null,
-};
-
-/**
- * Patient Service
- * Handles pure business logic for patient profiles, medical documents, and emergency history.
- */
 class PatientService {
   /**
    * Creates a new Patient profile linked to a User account.
-   * @param {string} userId - The user's ID.
-   * @param {Object} patientData - Patient specific fields (DOB, blood group, etc).
-   * @returns {Promise<Object>} The created patient profile as a plain object.
    */
-  async createPatientProfile(userId, patientData) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const existingProfile = await PatientRepository.findProfileByUser(userId, session);
-      if (existingProfile) {
-        throw new ApiError(409, 'Patient profile already exists for this user', 'PROFILE_EXISTS');
-      }
-
-      const newProfileData = { ...patientData, user: userId };
-      const profile = await PatientRepository.createProfile(newProfileData, session);
-
-      logger.info(`[AUDIT] Patient Profile Created: ${profile._id} for User: ${userId}`);
-
-      await session.commitTransaction();
-      session.endSession();
-      
-      return profile; // Plain JS object returned by repository in the future
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
+  async createProfile(userId, patientData) {
+    const existingProfile = await patientRepository.findProfileByUserIncludingInactive(userId);
+    if (existingProfile) {
+      throw new ApiError(409, 'Patient profile already exists for this user', 'PROFILE_EXISTS');
     }
+
+    // Phone normalization and duplicate check within array
+    const normalizedContacts = this._normalizeContacts(patientData.emergencyContacts);
+
+    const newProfileData = { 
+      ...patientData, 
+      user: userId,
+      emergencyContacts: normalizedContacts
+    };
+    
+    // No explicit transaction needed here since it's a single atomic document insertion 
+    // and unique constraint on 'user' prevents races.
+    const profile = await patientRepository.createProfile(newProfileData);
+
+    auditService.logEvent('PATIENT_PROFILE_CREATED', userId, { patientId: profile._id });
+    
+    return profile;
   }
 
   /**
-   * Retrieves a Patient profile by its ID.
-   * @param {string} profileId - The patient profile ID.
-   * @returns {Promise<Object>} The patient profile.
+   * Retrieves the current user's Patient profile.
    */
-  async getProfile(profileId) {
-    const profile = await PatientRepository.findProfileById(profileId);
+  async getCurrentPatient(userId) {
+    const profile = await patientRepository.findProfileByUser(userId);
     if (!profile) {
       throw new ApiError(404, 'Patient profile not found', 'NOT_FOUND');
     }
@@ -67,93 +50,190 @@ class PatientService {
   }
 
   /**
-   * Updates an existing Patient profile.
-   * @param {string} profileId - The patient profile ID.
-   * @param {Object} updateData - Fields to update.
-   * @returns {Promise<Object>} The updated patient profile.
+   * Retrieves a specific Patient profile by ID, enforcing Server-Side Relationship Authorization.
    */
-  async updateProfile(profileId, updateData) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const profile = await PatientRepository.updateProfile(profileId, updateData, session);
-      if (!profile) {
-        throw new ApiError(404, 'Patient profile not found', 'NOT_FOUND');
-      }
-
-      logger.info(`[AUDIT] Patient Profile Updated: ${profileId}`);
-
-      await session.commitTransaction();
-      session.endSession();
-      
-      return profile;
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
+  async getPatientById(patientId, reqUser) {
+    const profile = await patientRepository.findProfileById(patientId);
+    if (!profile) {
+      throw new ApiError(404, 'Patient profile not found or inactive', 'NOT_FOUND');
     }
+
+    if (reqUser.role === 'admin') {
+      auditService.logEvent('PATIENT_DATA_ACCESSED', reqUser._id, { patientId, role: reqUser.role });
+      return profile; // Admin sees full profile
+    }
+
+    // Server-side Authorization via EmergencyRequest
+    const isAuthorized = await this._authorizeProviderAccess(patientId, reqUser);
+    if (!isAuthorized) {
+      throw new ApiError(403, 'You are not authorized to access this patient\'s data', 'FORBIDDEN_RESOURCE');
+    }
+
+    auditService.logEvent('PATIENT_DATA_ACCESSED', reqUser._id, { patientId, role: reqUser.role });
+    return this._projectProfileForRole(profile, reqUser.role);
   }
 
   /**
-   * Updates the patient's live location (GeoJSON).
-   * @param {string} profileId - The patient profile ID.
-   * @param {number} lng - Longitude.
-   * @param {number} lat - Latitude.
-   * @returns {Promise<Object>} The updated profile.
+   * Updates demographics of current patient.
    */
-  async updateLiveLocation(profileId, lng, lat) {
-    const locationData = {
-      location: {
-        type: 'Point',
-        coordinates: [lng, lat]
-      }
-    };
-    // No transaction needed for simple fast location updates
-    const profile = await PatientRepository.updateProfile(profileId, locationData);
-    if (!profile) throw new ApiError(404, 'Patient profile not found', 'NOT_FOUND');
+  async updateProfile(userId, updateData) {
+    const profile = await patientRepository.updateProfileByUserId(userId, updateData);
+    if (!profile) {
+      throw new ApiError(404, 'Patient profile not found', 'NOT_FOUND');
+    }
+
+    auditService.logEvent('PATIENT_PROFILE_UPDATED', userId, { updatedFields: Object.keys(updateData) });
     return profile;
   }
 
   /**
-   * Uploads medical documents URL references to the patient profile.
-   * @param {string} profileId - The patient profile ID.
-   * @param {Array<string>} documentUrls - Array of secure URLs (e.g., S3).
-   * @returns {Promise<Object>} The updated profile.
+   * Update live location with timestamp protection.
    */
-  async uploadMedicalDocuments(profileId, documentUrls) {
-    // Logic to append document URLs to the profile
-    const updateData = { $push: { medicalDocuments: { $each: documentUrls } } };
-    const profile = await PatientRepository.updateProfile(profileId, updateData);
-    if (!profile) throw new ApiError(404, 'Patient profile not found', 'NOT_FOUND');
+  async updateLiveLocation(userId, locationData) {
+    const timestamp = locationData.timestamp ? new Date(locationData.timestamp) : new Date();
     
-    logger.info(`[AUDIT] Documents Uploaded for Patient: ${profileId}`);
+    const profile = await patientRepository.updateLocation(userId, locationData.location, timestamp);
+    if (!profile) {
+      // It could mean profile not found, OR stale update prevented (query did not match).
+      // Since it's a high frequency fire-and-forget, we check if patient exists at all.
+      const exists = await patientRepository.findProfileByUser(userId);
+      if (!exists) throw new ApiError(404, 'Patient profile not found', 'NOT_FOUND');
+      // If exists but didn't update, it was a stale update (locationUpdatedAt > newTimestamp). Ignore silently.
+      return null; 
+    }
     return profile;
   }
 
   /**
-   * Soft deletes a patient profile.
-   * @param {string} profileId - The patient profile ID.
-   * @returns {Promise<boolean>} Success status.
+   * Update emergency contacts.
    */
-  async deleteProfile(profileId) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      const result = await PatientRepository.softDeleteProfile(profileId, session);
-      if (!result) throw new ApiError(404, 'Patient profile not found', 'NOT_FOUND');
-      
-      logger.warn(`[AUDIT] Patient Profile Soft Deleted: ${profileId}`);
-      
-      await session.commitTransaction();
-      session.endSession();
-      return true;
-    } catch (error) {
-      await session.abortTransaction();
-      session.endSession();
-      throw error;
+  async updateEmergencyContacts(userId, contacts) {
+    const normalizedContacts = this._normalizeContacts(contacts);
+    
+    const profile = await patientRepository.updateProfileByUserId(userId, { emergencyContacts: normalizedContacts });
+    if (!profile) {
+      throw new ApiError(404, 'Patient profile not found', 'NOT_FOUND');
     }
+
+    auditService.logEvent('EMERGENCY_CONTACTS_UPDATED', userId, { count: normalizedContacts.length });
+    return profile;
+  }
+
+  /**
+   * Soft delete patient profile.
+   */
+  async softDeleteProfile(userId) {
+    const profile = await patientRepository.softDeleteByUserId(userId);
+    if (!profile) {
+      throw new ApiError(404, 'Patient profile not found', 'NOT_FOUND');
+    }
+    
+    // Soft delete user account
+    await userRepository.updateById(userId, { isActive: false });
+    
+    // Revoke all sessions to enforce logout
+    await sessionRepository.revokeAllUserSessions(userId);
+    
+    auditService.logEvent('PATIENT_PROFILE_DEACTIVATED', userId, { patientId: profile._id });
+    return true;
+  }
+
+  // ============================================================================
+  // PRIVATE HELPER METHODS
+  // ============================================================================
+
+  _normalizeContacts(contacts) {
+    if (!contacts) return [];
+    const uniquePhones = new Set();
+    const normalized = [];
+
+    for (const contact of contacts) {
+      // Remove spaces, dashes, parentheses to normalize E.164-like phone logic
+      let normalizedPhone = contact.phone.replace(/[\s\-\(\)]/g, '');
+      if (!uniquePhones.has(normalizedPhone)) {
+        uniquePhones.add(normalizedPhone);
+        normalized.push({
+          name: contact.name.trim(),
+          phone: normalizedPhone,
+          relation: contact.relation.trim()
+        });
+      }
+    }
+    return normalized;
+  }
+
+  async _authorizeProviderAccess(patientId, reqUser) {
+    // Determine active emergency request involving this patient and the provider
+    const activeStatuses = ['Pending', 'Accepted', 'En Route', 'Arrived', 'In Transit'];
+    
+    const baseQuery = { 
+      patient: patientId, 
+      isActive: true,
+      status: { $in: activeStatuses } 
+    };
+
+    if (reqUser.role === 'doctor') {
+      const doctor = await Doctor.findOne({ user: reqUser._id, isActive: true });
+      if (!doctor) return false;
+      const query = {
+        ...baseQuery,
+        $or: [{ doctor: doctor._id }, { hospital: doctor.hospital }]
+      };
+      const emergency = await EmergencyRequest.findOne(query);
+      return !!emergency;
+    }
+
+    if (reqUser.role === 'hospital') {
+      const hospital = await Hospital.findOne({ admin: reqUser._id, isActive: true });
+      if (!hospital) return false;
+      const emergency = await EmergencyRequest.findOne({ ...baseQuery, hospital: hospital._id });
+      return !!emergency;
+    }
+
+    if (reqUser.role === 'driver') {
+      const ambulance = await Ambulance.findOne({ driver: reqUser._id, isActive: true });
+      if (!ambulance) return false;
+      const emergency = await EmergencyRequest.findOne({ ...baseQuery, ambulance: ambulance._id });
+      return !!emergency;
+    }
+
+    return false;
+  }
+
+  _projectProfileForRole(profile, role) {
+    const obj = profile.toObject ? profile.toObject() : profile;
+    
+    if (role === 'doctor') {
+      return {
+        _id: obj._id,
+        dateOfBirth: obj.dateOfBirth,
+        gender: obj.gender,
+        bloodGroup: obj.bloodGroup,
+        emergencyContacts: obj.emergencyContacts,
+        location: obj.location
+      };
+    }
+    
+    if (role === 'hospital') {
+      return {
+        _id: obj._id,
+        dateOfBirth: obj.dateOfBirth,
+        gender: obj.gender,
+        bloodGroup: obj.bloodGroup,
+        emergencyContacts: obj.emergencyContacts
+      };
+    }
+    
+    if (role === 'driver') {
+      return {
+        _id: obj._id,
+        dateOfBirth: obj.dateOfBirth,
+        bloodGroup: obj.bloodGroup,
+        location: obj.location // Needed for pickup mapping
+      };
+    }
+
+    return obj;
   }
 }
 

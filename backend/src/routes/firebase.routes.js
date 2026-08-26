@@ -2,13 +2,13 @@ import express from 'express';
 import firebaseController from '../controllers/firebase.controller.js';
 import { validateRequest } from '../middleware/validate.middleware.js';
 import { firebaseValidation } from '../validations/firebase.validation.js';
-import { protect, authorize } from '../middleware/auth.middleware.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import firebaseRateLimit from '../middleware/firebaseRateLimit.js';
 
 const router = express.Router();
 
 router.use(firebaseRateLimit);
-router.use(protect); // All routes require authentication
+router.use(authenticate); // All routes require authentication
 
 // Device Token Management
 router.post('/register-device', validateRequest(firebaseValidation.deviceTokenSchema), firebaseController.registerDevice);

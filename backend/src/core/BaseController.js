@@ -22,9 +22,7 @@ export class BaseController {
    * @param {string} message - Success message.
    */
   sendSuccess(res, statusCode = 200, data = null, message = 'Success') {
-    return res.status(statusCode).json(
-      new ApiResponse(statusCode, data, message)
-    );
+    return ApiResponse.success(res, statusCode, message, data);
   }
 
   /**

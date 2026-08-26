@@ -1,5 +1,5 @@
-import jwt from 'jsonwebtoken';
 import { userRepository } from '../repositories/user.repository.js';
+import { verifyAccessToken } from '../utils/jwt.js';
 import { ApiError } from '../utils/ApiError.js';
 
 export const authenticate = async (req, res, next) => {
@@ -16,12 +16,13 @@ export const authenticate = async (req, res, next) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      decoded = verifyAccessToken(token);
     } catch (err) {
+      console.log('JWT Verify Error:', err.message);
       return next(new ApiError(401, 'Invalid or expired access token', 'TOKEN_INVALID'));
     }
 
-    const currentUser = await userRepository.findById(decoded.id || decoded.userId);
+    const currentUser = await userRepository.findByIdWithStatus(decoded.id || decoded.userId);
     if (!currentUser) {
       return next(new ApiError(401, 'User associated with this token no longer exists.', 'USER_NOT_FOUND'));
     }
