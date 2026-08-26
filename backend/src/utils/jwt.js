@@ -127,7 +127,7 @@ export const generateAccessToken = (user) => {
     id: user._id,
     email: user.email,
     role: user.role,
-    tokenVersion: user.tokenVersion || 1
+    tokenVersion: user.tokenVersion !== undefined ? user.tokenVersion : 0
   };
   return generateToken(payload, TOKEN_TYPES.ACCESS, user._id);
 };
@@ -135,7 +135,7 @@ export const generateAccessToken = (user) => {
 export const generateRefreshToken = (user) => {
   const payload = {
     id: user._id,
-    tokenVersion: user.tokenVersion || 1
+    tokenVersion: user.tokenVersion !== undefined ? user.tokenVersion : 0
   };
   return generateToken(payload, TOKEN_TYPES.REFRESH, user._id);
 };

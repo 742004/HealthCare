@@ -35,13 +35,9 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, 200, result, 'Login successful');
   });
 
-  /**
-   * Logout current device (invalidates specific JTI token).
-   * Route: POST /api/v1/auth/logout
-   */
   logout = this.execute(async (req, res) => {
-    // req.user and req.token.jti are injected by the JWT authentication middleware
-    await this.service.logout(req.user._id, req.token.jti);
+    const { refreshToken } = req.body;
+    await this.service.logout(refreshToken);
     return this.sendSuccess(res, 200, null, 'Logged out successfully');
   });
 
@@ -54,13 +50,10 @@ class AuthController extends BaseController {
     return this.sendSuccess(res, 200, null, 'Logged out of all devices successfully');
   });
 
-  /**
-   * Issue new access token using refresh token.
-   * Route: POST /api/v1/auth/refresh-token
-   */
   refreshToken = this.execute(async (req, res) => {
     const { refreshToken } = req.body;
-    const result = await this.service.refreshAccessToken(refreshToken, req.ip);
+    const meta = { ip: req.ip, userAgent: req.headers['user-agent'] };
+    const result = await this.service.refreshAccessToken(refreshToken, meta);
     return this.sendSuccess(res, 200, result, 'Token refreshed successfully');
   });
 

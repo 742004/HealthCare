@@ -60,6 +60,9 @@ const buildTemplate = (title, content, expirationNotice = '') => `
  * Core send method with Retry mechanism
  */
 const sendMailWithRetry = async (mailOptions, retries = 3) => {
+  if (process.env.NODE_ENV === 'test') {
+    return true; // Bypass real email sending in test environment
+  }
   for (let i = 0; i < retries; i++) {
     try {
       const info = await transporter.sendMail(mailOptions);

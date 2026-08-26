@@ -55,7 +55,7 @@ export class GroqProvider extends AIProvider {
         attempt++;
         logger?.error(`[Groq] generate() failed on attempt ${attempt}: ${error.message}`);
         if (attempt > retries) {
-          throw new Error(`AI generation failed after ${retries} retries: ${error.message}`);
+          throw new Error(`AI generation failed after ${retries} retries: ${error.message}`, { cause: error });
         }
         // Simple backoff
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
@@ -77,7 +77,7 @@ export class GroqProvider extends AIProvider {
       return response.choices[0]?.message?.content;
     } catch (error) {
       logger?.error(`[Groq] chat() failed: ${error.message}`);
-      throw new Error(`AI chat failed: ${error.message}`);
+      throw new Error(`AI chat failed: ${error.message}`, { cause: error });
     }
   }
 

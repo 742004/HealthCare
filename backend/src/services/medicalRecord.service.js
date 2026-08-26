@@ -292,8 +292,7 @@ class MedicalRecordService {
 
   async exportToHL7(recordId) {
     const record = await this._verifyRecordExists(recordId);
-    // Convert to HL7 v2 format string
-    return 'MSH|^~\&|HEALIX...';
+    return 'MSH|^~&|HEALIX...';
   }
 }
 

@@ -16,6 +16,14 @@ export class UserRepository extends BaseRepository {
       .session(session);
   }
 
+  async findByIdWithStatus(id, session = null) {
+    return this.model.findById(id).select('+isActive').session(session);
+  }
+
+  async findByIdWithPassword(id, session = null) {
+    return this.model.findById(id).select('+password').session(session);
+  }
+
   async findByPhone(phone, session = null) {
     return this.findOne({ phone }, session);
   }
