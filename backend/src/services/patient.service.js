@@ -177,7 +177,7 @@ class PatientService {
       if (!doctor) return false;
       const query = {
         ...baseQuery,
-        $or: [{ doctor: doctor._id }, { hospital: doctor.hospital }]
+        doctor: doctor._id
       };
       const emergency = await EmergencyRequest.findOne(query);
       return !!emergency;

@@ -38,7 +38,12 @@ export const globalErrorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
-  if (process.env.NODE_ENV === 'development') {
+  if (err.code === 11000) {
+    err.statusCode = 409;
+    err.status = 'fail';
+  }
+
+  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
     sendErrorDev(err, res);
   } else if (process.env.NODE_ENV === 'production') {
     let error = { ...err };
@@ -49,8 +54,8 @@ export const globalErrorHandler = (err, req, res, next) => {
       error = { ...err, isOperational: true, message: `Invalid ${err.path}: ${err.value}.` };
     }
     if (err.code === 11000) {
-      const value = err.errmsg.match(/(["'])(\\?.)*?\1/)[0];
-      error = { ...err, isOperational: true, message: `Duplicate field value: ${value}. Please use another value!` };
+      const value = err.errmsg ? err.errmsg.match(/(["'])(\\?.)*?\1/)?.[0] || 'unknown' : 'unknown';
+      error = { ...err, isOperational: true, message: `Duplicate field value: ${value}. Please use another value!`, statusCode: 409 };
     }
     if (err.name === 'ValidationError') {
       const errors = Object.values(err.errors).map((el) => el.message);

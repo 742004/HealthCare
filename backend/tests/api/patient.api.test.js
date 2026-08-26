@@ -64,11 +64,25 @@ describe('Patient API Integration Tests', () => {
       expect(res.status).toBe(403);
     });
 
-    it('PATIENT-006: Doctor unauthorized patient -> 403', async () => {
+    it('PATIENT-006: Doctor unauthorized patient (Unrelated) -> 403', async () => {
       await Doctor.create({ user: doctorUser._id, hospital: new mongoose.Types.ObjectId(), specialization: 'General', licenseNumber: 'doc1', experienceYears: 5 });
       const res = await request(app).get(`/api/v1/patients/${targetPatient._id}`)
         .set('Authorization', `Bearer ${doctorToken}`);
       expect(res.status).toBe(403);
+    });
+
+    it('PATIENT-025: Doctor unauthorized patient (Same-hospital but unassigned) -> 403', async () => {
+      const hospital = await Hospital.create({ admin: hospitalUser._id, name: 'H1', registrationNumber: 'reg1', contactNumber: '123', location: { coordinates: [0, 0] } });
+      const doctor = await Doctor.create({ user: doctorUser._id, hospital: hospital._id, specialization: 'General', licenseNumber: 'doc1_b', experienceYears: 5 });
+      
+      // Emergency is assigned to the HOSPITAL, but NOT this specific doctor
+      await EmergencyRequest.create({ 
+        patient: targetPatient._id, hospital: hospital._id, pickupLocation: { coordinates: [0,0] }
+      });
+
+      const res = await request(app).get(`/api/v1/patients/${targetPatient._id}`)
+        .set('Authorization', `Bearer ${doctorToken}`);
+      expect(res.status).toBe(403); // Security fix ensures this is DENIED
     });
 
     it('PATIENT-005: Doctor authorized patient -> 200', async () => {
