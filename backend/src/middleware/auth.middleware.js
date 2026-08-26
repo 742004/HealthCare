@@ -1,68 +1,132 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import { userRepository } from '../repositories/user.repository.js';
 import { ApiError } from '../utils/ApiError.js';
-// firebaseAdmin utility will be created in the utils folder later
-import { verifyFirebaseToken } from '../utils/firebaseAdmin.js'; 
 
-/**
- * Middleware to authenticate requests via custom JWT or Firebase Auth
- */
 export const authenticate = async (req, res, next) => {
   try {
     let token;
 
-    // 1. Check for token in Authorization header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     } 
-    // 2. Alternatively, check cookies if we implement cookie-based auth
-    else if (req.cookies && req.cookies.accessToken) {
-      token = req.cookies.accessToken;
-    }
 
     if (!token) {
-      return next(new ApiError(401, 'You are not logged in! Please log in to get access.'));
+      return next(new ApiError(401, 'Authentication required', 'UNAUTHENTICATED'));
     }
 
-    let decodedUserId;
-
-    // 3. Attempt to verify as a custom JWT
+    let decoded;
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      decodedUserId = decoded.id;
-    } catch (jwtError) {
-      // 4. If custom JWT fails, attempt to verify as a Firebase ID Token
-      try {
-        const firebaseDecodedToken = await verifyFirebaseToken(token);
-        // We assume Firebase token uses email to link to our DB User
-        const userByEmail = await User.findOne({ email: firebaseDecodedToken.email }).select('_id');
-        if (!userByEmail) {
-          return next(new ApiError(401, 'Firebase user not registered in system.'));
-        }
-        decodedUserId = userByEmail._id;
-      } catch (firebaseError) {
-        return next(new ApiError(401, 'Invalid or expired token. Please log in again.'));
-      }
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return next(new ApiError(401, 'Invalid or expired access token', 'TOKEN_INVALID'));
     }
 
-    // 5. Check if user still exists in our database
-    const currentUser = await User.findById(decodedUserId).select('-password');
+    const currentUser = await userRepository.findById(decoded.id || decoded.userId);
     if (!currentUser) {
-      return next(new ApiError(401, 'The user belonging to this token no longer exists.'));
+      return next(new ApiError(401, 'User associated with this token no longer exists.', 'USER_NOT_FOUND'));
     }
 
-    // 6. Check if user was deactivated / soft deleted
-    if (currentUser.isActive === false) {
-      return next(new ApiError(403, 'This account has been deactivated.'));
+    if (!currentUser.isActive) {
+      return next(new ApiError(403, 'Account is disabled.', 'ACCOUNT_DISABLED'));
     }
 
-    // 7. Grant access to protected route
+    if (currentUser.isLocked) {
+      return next(new ApiError(403, 'Account is locked.', 'ACCOUNT_LOCKED'));
+    }
+
+    if (decoded.tokenVersion !== undefined && currentUser.tokenVersion !== decoded.tokenVersion) {
+      return next(new ApiError(401, 'Session is invalid or expired. Please log in again.', 'SESSION_INVALID'));
+    }
+
     req.user = currentUser;
+    req.token = decoded; // Store token payload for JTI access during logout
     next();
   } catch (error) {
     next(new ApiError(500, 'Internal Server Error during authentication.'));
   }
 };
 
-export const protect = authenticate;
-export { restrictTo as authorize } from './role.middleware.js';
+export const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return next(new ApiError(403, 'You do not have permission to perform this action', 'FORBIDDEN_ROLE'));
+    }
+    next();
+  };
+};
+
+export const authorizePatientData = (req, res, next) => {
+  const patientId = req.params.patientId || req.body.patientId;
+  
+  if (req.user.role === 'admin') return next();
+  
+  if (req.user.role === 'patient') {
+    // Patients can only access their own data
+    // Assuming patientId in params is the user _id for now, or we lookup Patient document
+    // In a real scenario, compare Patient._id or Patient.user === req.user._id
+    if (patientId !== req.user._id.toString()) {
+      return next(new ApiError(403, 'You can only access your own data', 'FORBIDDEN_RESOURCE'));
+    }
+    return next();
+  }
+
+  if (req.user.role === 'doctor') {
+    // Check if patient is in doctor's assigned list (mocked via req for testing, or a DB call in prod)
+    if (req.assignedPatients && req.assignedPatients.includes(patientId)) {
+      return next();
+    }
+    return next(new ApiError(403, 'You are not authorized to access this patient data', 'FORBIDDEN_RESOURCE'));
+  }
+
+  if (req.user.role === 'hospital') {
+    if (req.assignedPatients && req.assignedPatients.includes(patientId)) {
+      return next();
+    }
+    return next(new ApiError(403, 'Patient not assigned to this hospital', 'FORBIDDEN_RESOURCE'));
+  }
+
+  if (req.user.role === 'ambulance') {
+    if (req.assignedPatients && req.assignedPatients.includes(patientId)) {
+      return next();
+    }
+    return next(new ApiError(403, 'Patient not assigned to this ambulance', 'FORBIDDEN_RESOURCE'));
+  }
+
+  return next(new ApiError(403, 'Forbidden', 'FORBIDDEN_RESOURCE'));
+};
+
+export const authorizeHospitalData = (req, res, next) => {
+  const hospitalId = req.params.hospitalId || req.body.hospitalId;
+  if (req.user.role === 'admin') return next();
+
+  if (req.user.role === 'hospital') {
+    if (hospitalId !== req.user._id.toString()) {
+      return next(new ApiError(403, 'You can only access your own hospital data', 'FORBIDDEN_ORGANIZATION'));
+    }
+    return next();
+  }
+
+  return next(new ApiError(403, 'Forbidden', 'FORBIDDEN_ORGANIZATION'));
+};
+
+export const authorizeEmergencyData = (req, res, next) => {
+  const emergencyId = req.params.emergencyId || req.body.emergencyId;
+  
+  if (req.user.role === 'admin') return next();
+
+  if (req.user.role === 'patient') {
+    if (req.assignedEmergencies && req.assignedEmergencies.includes(emergencyId)) {
+      return next();
+    }
+    return next(new ApiError(403, 'You can only access your own emergency data', 'FORBIDDEN_RESOURCE'));
+  }
+
+  if (req.user.role === 'ambulance' || req.user.role === 'hospital' || req.user.role === 'doctor') {
+    if (req.assignedEmergencies && req.assignedEmergencies.includes(emergencyId)) {
+      return next();
+    }
+    return next(new ApiError(403, `Emergency not assigned to this ${req.user.role}`, 'FORBIDDEN_RESOURCE'));
+  }
+
+  return next(new ApiError(403, 'Forbidden', 'FORBIDDEN_RESOURCE'));
+};
